@@ -1,12 +1,15 @@
 // Get references to the audio element and the music toggle container
-const backgroundMusic = document.getElementById('backgroundMusic'); // Assumes an <audio id="backgroundMusic"> element exists elsewhere
-const musicToggleContainer = document.querySelector('.music-toggle'); // Select the div with class 'music-toggle'
-const musicIcon = musicToggleContainer ? musicToggleContainer.querySelector('i') : null; // Get the <i> element inside it
+const backgroundMusic = document.getElementById('backgroundMusic');
+const musicToggleContainer = document.querySelector('.music-toggle');
+const musicIcon = musicToggleContainer ? musicToggleContainer.querySelector('i') : null;
 
-/**
- * Toggles the playback state of the background music and updates the button icon.
- * @param {string} newState - 'play' to play music, 'pause' to pause music.
- */
+// Keys for localStorage
+const MUSIC_STATE_KEY = 'musicPlayerState';
+const CURRENT_SONG_URL_KEY = 'currentSongUrl';
+const PLAYBACK_TIME_KEY = 'playbackTime';
+const IS_PLAYING_KEY = 'isPlaying';
+
+// Music files array including your provided URLs (which are direct MP3s)
 const musicFiles = [
     'https://t4.bcbits.com/stream/a6bcd1018c0f9934a56416c93de8ba81/mp3-128/3563446242?p=0&ts=1749789518&t=09efb78988755e6fa2eb77b76df3719d4780c18b&token=1749789518_ac6462f28780132c730ff70c17103730a7c89895',
     'https://t4.bcbits.com/stream/414f8f32e5a577461dc912b6781edb21/mp3-128/3937674236?p=0&ts=1749789305&t=a2321d5a969b6e785113a86512176f4012774da9&token=1749789305_e69bb55ebfdc7f41100234ca42565f9aab48dc92',
@@ -14,8 +17,86 @@ const musicFiles = [
     'https://t4.bcbits.com/stream/f00b69aba2e9f045736c582a12d618cc/mp3-128/1445891977?p=0&ts=1749789576&t=31471cc2d1e1bc0296809d80a9e8d3eae1877a68&token=1749789576_082db0a85014611ea635ec33d6f798b36867cfc2',
     'https://t4.bcbits.com/stream/1188325c682bc2a7c1c31d0cb1d814be/mp3-128/2063117494?p=0&ts=1749789654&t=b3e738f55167c0dec1e10ab39ace7ad0c669b4c1&token=1749789654_6990431eebfd9830f40616890b55681045e5f4f9',
     'https://t4.bcbits.com/stream/cb36876317844404f158c654230eddc5/mp3-128/1866789838?p=0&ts=1749789713&t=c0b3ab08011d9d294cc49dcebc6e34f8eddea398&token=1749789713_198314b67f75e7a01a752124b59f7831ce5c14f3',
-
 ];
+
+/**
+ * Saves the current music state to localStorage.
+ * Stores: current song URL, current playback time, and whether it was playing.
+ */
+function saveMusicState() {
+    try {
+        const state = {
+            [CURRENT_SONG_URL_KEY]: backgroundMusic.src,
+            [PLAYBACK_TIME_KEY]: backgroundMusic.currentTime,
+            [IS_PLAYING_KEY]: !backgroundMusic.paused
+        };
+        localStorage.setItem(MUSIC_STATE_KEY, JSON.stringify(state));
+        console.log("Music state saved:", state);
+    } catch (e) {
+        console.error("Error saving music state to localStorage:", e);
+    }
+}
+
+/**
+ * Loads and restores the music state from localStorage.
+ */
+function loadMusicState() {
+    try {
+        const savedStateString = localStorage.getItem(MUSIC_STATE_KEY);
+        if (savedStateString) {
+            const savedState = JSON.parse(savedStateString);
+            const savedSongUrl = savedState[CURRENT_SONG_URL_KEY];
+            const savedTime = savedState[PLAYBACK_TIME_KEY];
+            const wasPlaying = savedState[IS_PLAYING_KEY];
+
+            if (savedSongUrl && savedTime !== undefined) {
+                backgroundMusic.src = savedSongUrl;
+                backgroundMusic.currentTime = savedTime;
+                backgroundMusic.load(); // Load the audio
+
+                console.log("Music state loaded:", savedState);
+
+                if (wasPlaying) {
+                    // Attempt to play only if it was playing and the source is loaded
+                    backgroundMusic.play().then(() => {
+                        console.log("Music resumed from last session.");
+                        if (musicIcon) {
+                            musicIcon.className = "gg-play-pause-o";
+                        }
+                        musicToggleContainer.classList.add('active-music');
+                    }).catch(error => {
+                        console.warn("Autoplay prevented on page load. User interaction required to resume:", error);
+                        // If autoplay fails, set icon to play
+                        if (musicIcon) {
+                            musicIcon.className = "gg-play-button-o";
+                        }
+                        musicToggleContainer.classList.remove('active-music');
+                    });
+                } else {
+                    // Was paused, just update icon
+                    if (musicIcon) {
+                        musicIcon.className = "gg-play-button-o";
+                    }
+                    musicToggleContainer.classList.remove('active-music');
+                }
+            }
+        } else {
+            console.log("No saved music state found.");
+            // If no state, ensure button is in play state
+            if (musicIcon) {
+                musicIcon.className = "gg-play-button-o";
+            }
+            musicToggleContainer.classList.remove('active-music');
+        }
+    } catch (e) {
+        console.error("Error loading music state from localStorage:", e);
+        // Fallback to default initial state if error occurs
+        if (musicIcon) {
+            musicIcon.className = "gg-play-button-o";
+        }
+        musicToggleContainer.classList.remove('active-music');
+    }
+}
 
 /**
  * Selects a random song from the list and plays it.
@@ -31,34 +112,36 @@ function playRandomMusic() {
 
     console.log("Attempting to play next song:", randomSongUrl);
 
-    // Immediately show the 'forwards' icon while loading/playing the next song
+    
     if (musicIcon) {
         musicIcon.className = "gg-arrow-right-r";
     }
-    musicToggleContainer.classList.add('active-music'); // Keep active state during transition
+    musicToggleContainer.classList.add('active-music'); 
 
-    // Assume it's a direct audio file (MP3, WAV, etc.)
+    
     backgroundMusic.src = randomSongUrl;
-    backgroundMusic.load(); // Load the new song
+    backgroundMusic.load(); 
 
-    // Attempt to play the music
+    
     backgroundMusic.play().then(() => {
-        // If successful, change to pause icon after 1 second delay
+        
         setTimeout(() => {
             if (musicIcon) {
                 musicIcon.className = "gg-play-pause-o";
             }
-        }, 1000); // 1 second delay
+        }, 1000); 
         console.log("Music playing:", randomSongUrl);
+        saveMusicState(); 
     }).catch(error => {
-        // If autoplay prevented or an error occurs, revert to play icon after 1 second delay
+        
         console.warn("Autoplay prevented for:", randomSongUrl, error);
         setTimeout(() => {
             if (musicIcon) {
                 musicIcon.className = "gg-play-button-o";
             }
             musicToggleContainer.classList.remove('active-music');
-        }, 1000); // 1 second delay
+        }, 1000); 
+        saveMusicState(); 
     });
 }
 
@@ -73,23 +156,25 @@ function toggleMusic(newState) {
     }
 
     if (newState === "play") {
-        // If the audio source is not set or is currently paused, initiate play.
+        
         if (backgroundMusic.paused || backgroundMusic.src === "") {
-            // If backgroundMusic.src is empty, it means no song has been played yet
-            // or the previous song failed/was reset. Play a random song.
+            
+            
             if (backgroundMusic.src === "") {
-                playRandomMusic(); // This will handle icon changes to 'forwards' then 'pause'
+                playRandomMusic(); 
             } else {
-                // If a song is loaded but paused, try to play it.
+                
                 backgroundMusic.play().then(() => {
                     musicIcon.className = "gg-play-pause-o";
                     musicToggleContainer.classList.add('active-music');
                     console.log("Music resumed.");
+                    saveMusicState(); 
                 }).catch(error => {
                     console.warn("Autoplay prevented on resume:", error);
-                    // Keep icon as play if autoplay failed
+                    
                     musicIcon.className = "gg-play-button-o";
                     musicToggleContainer.classList.remove('active-music');
+                    saveMusicState(); 
                 });
             }
         }
@@ -98,79 +183,83 @@ function toggleMusic(newState) {
         musicIcon.className = "gg-play-button-o";
         musicToggleContainer.classList.remove('active-music');
         console.log("Music paused.");
+        saveMusicState(); 
     }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Check if critical elements exist
+    
     if (!musicToggleContainer || !backgroundMusic || !musicIcon) {
         console.error("Critical elements (music-toggle, backgroundMusic, musicIcon) not found. Script will not run.");
-        return; // Exit if essential elements are missing
+        return; 
     }
 
-    let pressTimer;
-    const LONG_PRESS_THRESHOLD = 500; // Define long press threshold in milliseconds
+    
+    loadMusicState();
 
-    // Event listener for mouse down (desktop)
+    let pressTimer;
+    const LONG_PRESS_THRESHOLD = 500; 
+
+    
     musicToggleContainer.addEventListener('mousedown', (e) => {
-        // Only respond to left-clicks for long press
+        
         if (e.button === 0) {
             pressTimer = setTimeout(() => {
-                // This code executes if the mouse button is held down for LONG_PRESS_THRESHOLD
+                
                 console.log("Long press detected: Playing next random song.");
-                // Pause current song if playing, then play next random to ensure smooth transition
+                
                 if (!backgroundMusic.paused) {
                     backgroundMusic.pause();
                 }
                 playRandomMusic();
-                // Set a flag to prevent the 'mouseup' from triggering a short click logic
+                
                 musicToggleContainer.dataset.longPress = 'true';
             }, LONG_PRESS_THRESHOLD);
         }
     });
 
-    // Event listener for mouse up (desktop)
+    
     musicToggleContainer.addEventListener('mouseup', () => {
-        clearTimeout(pressTimer); // Clear the timer if mouse button is released
+        clearTimeout(pressTimer); 
         if (musicToggleContainer.dataset.longPress === 'true') {
-            // If it was a long press, reset the flag and do nothing for this mouseup
+            
             delete musicToggleContainer.dataset.longPress;
         } else {
-            // This was a short click, proceed with play/pause toggle
+            
             console.log("Short click detected: Toggling play/pause.");
-            // Check if music is currently playing or has ended
+            
             if (!backgroundMusic.paused || backgroundMusic.ended) {
                 toggleMusic("pause");
-            } else { // If paused, play
+            } else { 
                 toggleMusic("play");
             }
         }
     });
 
-    // Event listener for touch start (mobile)
+    
     musicToggleContainer.addEventListener('touchstart', (e) => {
-        // Prevent default touch behavior (like scrolling/zooming) to ensure press is registered
+        
         e.preventDefault();
         pressTimer = setTimeout(() => {
             console.log("Long touch detected: Playing next random song.");
-            // Pause current song if playing, then play next random
+            
             if (!backgroundMusic.paused) {
                 backgroundMusic.pause();
             }
             playRandomMusic();
-            // Set a flag for long press detection
+            
             musicToggleContainer.dataset.longPress = 'true';
         }, LONG_PRESS_THRESHOLD);
-    }, { passive: false }); // Use { passive: false } to allow e.preventDefault() for touchstart
+    }, { passive: false }); 
 
-    // Event listener for touch end (mobile)
+    
     musicToggleContainer.addEventListener('touchend', () => {
-        clearTimeout(pressTimer); // Clear the timer if touch ends
+        clearTimeout(pressTimer); 
         if (musicToggleContainer.dataset.longPress === 'true') {
-            // If it was a long press, reset the flag
+            
             delete musicToggleContainer.dataset.longPress;
         } else {
-            // This was a short tap, proceed with play/pause toggle
+            
             console.log("Short touch detected: Toggling play/pause.");
             if (!backgroundMusic.paused || backgroundMusic.ended) {
                 toggleMusic("pause");
@@ -184,6 +273,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // This will trigger playRandomMusic() when any track finishes
     backgroundMusic.addEventListener('ended', playRandomMusic);
 
-    // Initialize the button icon to 'play' as music starts paused
-    musicIcon.className = "gg-play-button-o";
+    // Add event listener to save state before page unload
+    window.addEventListener('beforeunload', saveMusicState);
+    window.addEventListener('pagehide', saveMusicState); // For mobile browsers (iOS Safari)
 });
