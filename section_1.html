@@ -4307,6 +4307,8 @@
 
 	<!-- CSS for dark mode toggle button -->
 	<link href="resources/dark-mode-toggle.css" rel="stylesheet">
+    <!-- CSS for music toggle button -->
+	<link href="resources/music-toggle.css" rel="stylesheet">
 
 	<!-- Dark Reader API via jsDelivr CDN-->
 	<script src="resources/darkreader.min.js"></script>
@@ -4342,6 +4344,15 @@
 	<div class="dark-mode-toggle">
 		<i class="gg-moon"></i>
 	</div>
+    <div class="circle"></div>
+    <!-- Music toggle button -->
+    <div class="music-toggle">
+        <i class="gg-play-button-o"></i>
+    </div>
+    <audio id="backgroundMusic" loop>
+        <source src="#" type="audio/mpeg">
+        Your browser does not support the audio element.
+    </audio>
     <div class="main" id="luxy">
     <div id="wrapper">
         <div id="main">
@@ -6744,6 +6755,7 @@
     </script>
     <!-- JS for toggling dark mode -->
 	<script src="resources/dark-mode-toggle.js"></script>
+    <script src="resources/music-toggle.js"></script>
     </script>
 	<!-- luxy.js for smooth scrolling -->
 	<script src="resources/luxy.js"></script>
